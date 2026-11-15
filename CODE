@@ -1,0 +1,113 @@
+axes[0].plot(results_plot["DateTime"], results_plot["Actual_CO"],
+             label="Actual CO", alpha=0.7)
+axes[0].plot(results_plot["DateTime"], results_plot["Linear_Regression_Predicted_CO"],
+             label="Predicted CO", alpha=0.8)
+axes[0].set_title("Linear Regression: Actual vs Predicted CO")
+axes[0].set_ylabel("CO Concentration (mg/m³)")
+axes[0].legend()
+
+axes[1].plot(results_plot["DateTime"], results_plot["Actual_CO"],
+             label="Actual CO", alpha=0.7)
+axes[1].plot(results_plot["DateTime"], results_plot["Decision_Tree_Predicted_CO"],
+             label="Predicted CO", alpha=0.8)
+axes[1].set_title("Decision Tree: Actual vs Predicted CO")
+axes[1].set_xlabel("Date")
+axes[1].set_ylabel("CO Concentration (mg/m³)")
+axes[1].legend()
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / "CO_Actual_vs_Predicted_Time.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+# Actual vs predicted scatter plots.
+min_val = min(y_test.min(), y_test_pred_lr.min(), y_test_pred_dt.min())
+max_val = max(y_test.max(), y_test_pred_lr.max(), y_test_pred_dt.max())
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+axes[0].scatter(y_test, y_test_pred_lr, alpha=0.35, s=15)
+axes[0].plot([min_val, max_val], [min_val, max_val], linestyle="--")
+axes[0].set_title("Linear Regression")
+axes[0].set_xlabel("Actual CO (mg/m³)")
+axes[0].set_ylabel("Predicted CO (mg/m³)")
+
+axes[1].scatter(y_test, y_test_pred_dt, alpha=0.35, s=15)
+axes[1].plot([min_val, max_val], [min_val, max_val], linestyle="--")
+axes[1].set_title("Decision Tree Regression")
+axes[1].set_xlabel("Actual CO (mg/m³)")
+axes[1].set_ylabel("Predicted CO (mg/m³)")
+plt.suptitle("Actual vs Predicted CO Concentrations")
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / "CO_Actual_vs_Predicted_Scatter.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+# Residual plots.
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+axes[0].scatter(y_test_pred_lr, lr_residuals, alpha=0.35, s=15)
+axes[0].axhline(y=0, linestyle="--")
+axes[0].set_title("Linear Regression Residuals")
+axes[0].set_xlabel("Predicted CO (mg/m³)")
+axes[0].set_ylabel("Residuals")
+
+axes[1].scatter(y_test_pred_dt, dt_residuals, alpha=0.35, s=15)
+axes[1].axhline(y=0, linestyle="--")
+axes[1].set_title("Decision Tree Residuals")
+axes[1].set_xlabel("Predicted CO (mg/m³)")
+axes[1].set_ylabel("Residuals")
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / "CO_Residual_Analysis.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+# Visual comparison of test metrics.
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+metrics_to_plot = [
+    ("Testing MAE", "Testing MAE"),
+    ("Testing RMSE", "Testing RMSE"),
+    ("Testing R2", "Testing R² Score"),
+]
+for ax, (column, title) in zip(axes, metrics_to_plot):
+    bars = ax.bar(model_comparison["Model"], model_comparison[column])
+    ax.set_title(title)
+    ax.tick_params(axis="x", rotation=20)
+    for bar in bars:
+        height = bar.get_height()
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            height,
+            f"{height:.3f}",
+            ha="center",
+            va="bottom"
+        )
+plt.suptitle("Machine Learning Model Performance Comparison")
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / "Model_Performance_Comparison.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+# Decision Tree feature importance.
+tree_regressor = decision_tree_model.named_steps["regressor"]
+feature_importance = pd.DataFrame({
+    "Feature": feature_columns,
+    "Importance": tree_regressor.feature_importances_
+}).sort_values(by="Importance", ascending=False)
+
+print("\nDECISION TREE FEATURE IMPORTANCE")
+print(feature_importance.to_string(index=False))
+feature_importance.to_csv(OUTPUT_DIR / "decision_tree_feature_importance.csv", index=False)
+
+plt.figure(figsize=(10, 6))
+sns.barplot(data=feature_importance, x="Importance", y="Feature")
+plt.title("Decision Tree Feature Importance")
+plt.xlabel("Importance Score")
+plt.ylabel("Input Features")
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / "Decision_Tree_Feature_Importance.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+# Save trained pipelines. Each includes its training-fitted median imputer.
+joblib.dump(linear_model, OUTPUT_DIR / "linear_regression_pipeline.joblib")
+joblib.dump(decision_tree_model, OUTPUT_DIR / "decision_tree_pipeline.joblib")
+
+print("\nExperiment 10 completed successfully.")
+print("All result tables, charts, predictions and trained models are in:")
+print(OUTPUT_DIR.resolve())
+print("\nReminder: This is the Air Quality / CO regression practical from the PDF,")
+print("not a bank customer churn classification model.")
